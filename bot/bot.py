@@ -16,7 +16,7 @@ MODEL_NAME = "qwen2.5:7b"
 
 # Dictionary to hold message history per chat: { chat_id: [ {"role": "user/assistant", "content": "..."}, ... ] }
 user_histories = {}
-MAX_HISTORY_LENGTH = 10  # Keeps the last 10 turns (5 user messages + 5 assistant replies) to save context window
+MAX_HISTORY_LENGTH = 20  # Keeps the last 10 turns (5 user messages + 5 assistant replies) to save context window
 
 # System prompt defining the aggressive and rude persona
 SYSTEM_PROMPT = {
