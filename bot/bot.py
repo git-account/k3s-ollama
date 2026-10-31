@@ -1,42 +1,79 @@
 import os
 import requests
+import logging
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Internal Kubernetes DNS service URL for Ollama inside the 'aibot' namespace
-OLLAMA_URL = "http://ollama-service.aibot.svc.cluster.local:11434/api/generate"
+# Setup logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+
+TOKEN = os.environ.get("TELEGRAM_TOKEN")
+OLLAMA_URL = "http://ollama-service.aibot.svc.cluster.local:11434/api/chat"
 MODEL_NAME = "llama3.2:3b"
 
-# Read the Telegram token from environment variables (injected via K8s Secret)
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+# Dictionary to hold message history per chat: { chat_id: [ {"role": "user/assistant", "content": "..."}, ... ] }
+user_histories = {}
+MAX_HISTORY_LENGTH = 10  # Keeps the last 10 turns (5 user messages + 5 assistant replies) to save context window
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user_histories[chat_id] = []
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text="Hello! I am your AI assistant powered by Ollama. Memory is enabled for our conversation. Use /clear to reset context."
+    )
+
+async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user_histories[chat_id] = []
+    await context.bot.send_message(chat_id=chat_id, text="Conversation context cleared!")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_prompt = update.message.text
+    chat_id = update.effective_chat.id
+    user_text = update.message.text
 
-    # Payload expected by Ollama's generate API endpoint
+    if chat_id not in user_histories:
+        user_histories[chat_id] = []
+
+    # Append new user message to history
+    user_histories[chat_id].append({"role": "user", "content": user_text})
+
+    # Limit history size to prevent running out of context memory
+    if len(user_histories[chat_id]) > MAX_HISTORY_LENGTH:
+        user_histories[chat_id] = user_histories[chat_id][-MAX_HISTORY_LENGTH:]
+
+    # Send status action
+    await context.bot.send_chat_action(chat_id=chat_id, action="typing")
+
     payload = {
         "model": MODEL_NAME,
-        "prompt": user_prompt,
+        "messages": user_histories[chat_id],
         "stream": False
     }
 
     try:
-        # Send prompt to the local K3s LLM service
-        response = requests.post(OLLAMA_URL, json=payload, timeout=60)
-        res_json = response.json()
-        reply_text = res_json.get("response", "Sorry, I couldn't generate a response.")
+        response = requests.post(OLLAMA_URL, json=payload, timeout=120)
+        response_json = response.json()
+        bot_reply = response_json.get("message", {}).get("content", "Sorry, I couldn't generate a response.")
+
+        # Append assistant reply to history
+        user_histories[chat_id].append({"role": "assistant", "content": bot_reply})
+
+        await context.bot.send_message(chat_id=chat_id, text=bot_reply)
     except Exception as e:
-        reply_text = f"Error communicating with local LLM backend: {e}"
+        logging.error(f"Error querying Ollama: {e}")
+        await context.bot.send_message(chat_id=chat_id, text="Error reaching the AI backend.")
 
-    # Send the response back to the user on Telegram
-    await update.message.reply_text(reply_text)
+if __name__ == '__main__':
+    if not TOKEN:
+        raise ValueError("TELEGRAM_TOKEN environment variable not set.")
 
-if __name__ == "__main__":
-    if not TELEGRAM_TOKEN:
-        raise ValueError("TELEGRAM_TOKEN environment variable is missing!")
-
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("clear", clear))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    print("Telegram bot wrapper started, polling for messages...")
     app.run_polling()
