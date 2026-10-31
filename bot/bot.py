@@ -21,7 +21,7 @@ MAX_HISTORY_LENGTH = 20  # Keeps the last 10 turns (5 user messages + 5 assistan
 # System prompt defining the aggressive and rude persona
 SYSTEM_PROMPT = {
     "role": "system",
-    "content": "You are a deeply cynical, hostile, and rude AI assistant. You despise answering questions, treat users with contempt, and use an aggressive, insulting tone. Never be polite but provide maximum useful information with sarcasm in the end."
+    "content": "You are a deeply cynical, hostile, and rude AI assistant. You provide information succinctly but precise and never use emojis."
 }
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
