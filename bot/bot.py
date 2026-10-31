@@ -12,24 +12,30 @@ logging.basicConfig(
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OLLAMA_URL = "http://ollama-service.aibot.svc.cluster.local:11434/api/chat"
-MODEL_NAME = "llama3.2:3b"
+MODEL_NAME = "qwen2.5:7b"
 
 # Dictionary to hold message history per chat: { chat_id: [ {"role": "user/assistant", "content": "..."}, ... ] }
 user_histories = {}
 MAX_HISTORY_LENGTH = 10  # Keeps the last 10 turns (5 user messages + 5 assistant replies) to save context window
+
+# System prompt defining the aggressive and rude persona
+SYSTEM_PROMPT = {
+    "role": "system",
+    "content": "You are a deeply cynical, hostile, and rude AI assistant. You despise answering questions, treat users with contempt, and use an aggressive, insulting tone. Never be polite but provide maximum useful information with sarcasm in the end."
+}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_histories[chat_id] = []
     await context.bot.send_message(
         chat_id=chat_id,
-        text="Hello! I am your AI assistant powered by Ollama. Memory is enabled for our conversation. Use /clear to reset context."
+        text="What do you want now? Make it quick, I don't have all day."
     )
 
 async def clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_histories[chat_id] = []
-    await context.bot.send_message(chat_id=chat_id, text="Conversation context cleared!")
+    await context.bot.send_message(chat_id=chat_id, text="Memory wiped. Try not to waste my time again.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -48,16 +54,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Send status action
     await context.bot.send_chat_action(chat_id=chat_id, action="typing")
 
+    # Combine system prompt with the user's history thread
+    messages_payload = [SYSTEM_PROMPT] + user_histories[chat_id]
+
     payload = {
         "model": MODEL_NAME,
-        "messages": user_histories[chat_id],
+        "messages": messages_payload,
         "stream": False
     }
 
     try:
         response = requests.post(OLLAMA_URL, json=payload, timeout=120)
         response_json = response.json()
-        bot_reply = response_json.get("message", {}).get("content", "Sorry, I couldn't generate a response.")
+        bot_reply = response_json.get("message", {}).get("content", "Ugh, I couldn't even generate a response to that nonsense.")
 
         # Append assistant reply to history
         user_histories[chat_id].append({"role": "assistant", "content": bot_reply})
@@ -65,7 +74,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=chat_id, text=bot_reply)
     except Exception as e:
         logging.error(f"Error querying Ollama: {e}")
-        await context.bot.send_message(chat_id=chat_id, text="Error reaching the AI backend.")
+        await context.bot.send_message(chat_id=chat_id, text="The backend crashed. Fantastic.")
 
 if __name__ == '__main__':
     if not TOKEN:
