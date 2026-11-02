@@ -60,11 +60,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     payload = {
         "model": MODEL_NAME,
         "messages": messages_payload,
-        "stream": False
+        "stream": False,
+        "options": {
+            "temperature": 0.3
+        }
     }
 
     try:
-        response = requests.post(OLLAMA_URL, json=payload, timeout=120)
+        response = requests.post(OLLAMA_URL, json=payload, timeout=300)
         response_json = response.json()
         bot_reply = response_json.get("message", {}).get("content", "Ugh, I couldn't even generate a response to that nonsense.")
 
