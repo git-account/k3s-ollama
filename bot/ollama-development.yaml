@@ -34,6 +34,9 @@ spec:
       containers:
       - name: ollama
         image: ollama/ollama:latest
+        env:
+      - name: OLLAMA_KEEP_ALIVE
+        value: "5m" # Options: "-1" (indefinite), "30m", "2h", etc.
         ports:
         - containerPort: 11434
         volumeMounts:
@@ -63,3 +66,6 @@ spec:
     - port: 11434
       targetPort: 11434
   type: ClusterIP
+env:
+  - name: OLLAMA_KEEP_ALIVE
+    value: "-1"
