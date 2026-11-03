@@ -9,7 +9,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
-
+RANDOMBULLSHIT = "go"
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
 OLLAMA_URL = "http://ollama-service.aibot.svc.cluster.local:11434/api/chat"
 MODEL_NAME = "qwen2.5:7b"
