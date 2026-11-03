@@ -111,7 +111,7 @@ jobs:
           # Get the exact unique digest from the build output
           DIGEST="${{ steps.build-and-push.outputs.digest }}"
 
-          MANIFEST_PATH="bot/deployment.yaml"
+          MANIFEST_PATH="deployment.yaml"
 
           # Update the deployment manifest to use the immutable digest tag
           sed -i 's|image:.*|image: '"${IMAGE_BASE}@${DIGEST}"'|g' $MANIFEST_PATH
