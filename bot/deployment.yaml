@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: telegram-bot
-        image: ghcr.io/git-account/k3s-ollama@sha256:8ff1700fea435926ae78519311c008e3561bd80436bd2237b37469add2abec20
+        image: ghcr.io/git-account/k3s-ollama@sha256:2d9f4f0574bfe8f7efcab1e37e6c990f5dece01904ad08ae8e941740704e9070
         env:
         - name: TELEGRAM_TOKEN
           valueFrom:
