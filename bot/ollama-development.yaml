@@ -3,6 +3,7 @@ kind: Namespace
 metadata:
   name: aibot
 ---
+#your friendly comment
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
